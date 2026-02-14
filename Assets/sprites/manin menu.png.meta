@@ -1,10 +1,19 @@
 fileFormatVersion: 2
-guid: 99421ca59bf603d49b917b1531f0346d
+guid: ab100885892472943a28c3e2fd2415e3
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 7753929045291908386
-    second: Gemini_Generated_Image_fu3nixfu3nixfu3n_0
+      213: -590174458102492507
+    second: Gemini_Generated_Image_45lty445lty445lt-Photoroom_0
+  - first:
+      213: 8976721303693695909
+    second: Gemini_Generated_Image_45lty445lty445lt-Photoroom_1
+  - first:
+      213: 337767232944542196
+    second: Gemini_Generated_Image_45lty445lty445lt-Photoroom_2
+  - first:
+      213: 5922925243731329635
+    second: Gemini_Generated_Image_45lty445lty445lt-Photoroom_3
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -37,7 +46,7 @@ TextureImporter:
   maxTextureSize: 2048
   textureSettings:
     serializedVersion: 2
-    filterMode: 1
+    filterMode: 0
     aniso: 1
     mipBias: 0
     wrapU: 1
@@ -113,23 +122,121 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: Gemini_Generated_Image_fu3nixfu3nixfu3n_0
+      name: manin menu_0
       rect:
         serializedVersion: 2
         x: 0
         y: 0
-        width: 1024
+        width: 256
         height: 1024
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
-      outline: []
-      physicsShape: []
-      tessellationDetail: -1
+      outline:
+      - - {x: 0, y: -512}
+        - {x: 128, y: 0}
+        - {x: 0, y: 512}
+        - {x: -128, y: 0}
+      physicsShape:
+      - - {x: 0, y: -512}
+        - {x: 128, y: 0}
+        - {x: 0, y: 512}
+        - {x: -128, y: 0}
+      tessellationDetail: 0
       bones: []
-      spriteID: 22d3536726d7b9b60800000000000000
-      internalID: 7753929045291908386
+      spriteID: d54bb1cc1cee1db4b979fdb86300f0da
+      internalID: 976635281
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: manin menu_1
+      rect:
+        serializedVersion: 2
+        x: 256
+        y: 0
+        width: 256
+        height: 1024
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline:
+      - - {x: 0, y: -512}
+        - {x: 128, y: 0}
+        - {x: 0, y: 512}
+        - {x: -128, y: 0}
+      physicsShape:
+      - - {x: 0, y: -512}
+        - {x: 128, y: 0}
+        - {x: 0, y: 512}
+        - {x: -128, y: 0}
+      tessellationDetail: 0
+      bones: []
+      spriteID: f3fba8801d40b014b99724feeef4708b
+      internalID: 1391252355
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: manin menu_2
+      rect:
+        serializedVersion: 2
+        x: 512
+        y: 0
+        width: 256
+        height: 1024
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline:
+      - - {x: 0, y: -512}
+        - {x: 128, y: 0}
+        - {x: 0, y: 512}
+        - {x: -128, y: 0}
+      physicsShape:
+      - - {x: 0, y: -512}
+        - {x: 128, y: 0}
+        - {x: 0, y: 512}
+        - {x: -128, y: 0}
+      tessellationDetail: 0
+      bones: []
+      spriteID: ec1c1c0b686e2f34e886bcaebb7570bd
+      internalID: 43883293
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: manin menu_3
+      rect:
+        serializedVersion: 2
+        x: 768
+        y: 0
+        width: 256
+        height: 1024
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline:
+      - - {x: 0, y: -512}
+        - {x: 128, y: 0}
+        - {x: 0, y: 512}
+        - {x: -128, y: 0}
+      physicsShape:
+      - - {x: 0, y: -512}
+        - {x: 128, y: 0}
+        - {x: 0, y: 512}
+        - {x: -128, y: 0}
+      tessellationDetail: 0
+      bones: []
+      spriteID: 33f78cdc35582e54180e46c528b0a6ed
+      internalID: 1956971635
       vertices: []
       indices: 
       edges: []
@@ -138,7 +245,7 @@ TextureImporter:
     customData: 
     physicsShape: []
     bones: []
-    spriteID: 
+    spriteID: 22f0a8b4e0d66ad4e858ac3f540d90f9
     internalID: 0
     vertices: []
     indices: 
@@ -147,7 +254,11 @@ TextureImporter:
     secondaryTextures: []
     spriteCustomMetadata:
       entries: []
-    nameFileIdTable: {}
+    nameFileIdTable:
+      manin menu_0: 976635281
+      manin menu_1: 1391252355
+      manin menu_2: 43883293
+      manin menu_3: 1956971635
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 
