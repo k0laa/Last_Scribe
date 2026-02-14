@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
-using TMPro; // TextMeshPro (Can yazýsý) için kütüphane
+using TMPro;
+using UnityEngine.SceneManagement; // YENÝ: Sahneyi yeniden baþlatmak için gerekli kütüphane
 
 public class WordManager : MonoBehaviour
 {
@@ -15,41 +16,53 @@ public class WordManager : MonoBehaviour
     private float nextWordTime = 0f;
 
     [Header("Oyuncu ve Can Sistemi")]
-    public int playerHealth = 5; // Oyuncunun 5 caný var
-    public TextMeshProUGUI healthText; // Ekrandaki Can yazýsý
-    public float damageDistance = 50f; // Kelime merkeze ne kadar yaklaþýrsa çarpýþma sayýlacak?
+    public int playerHealth = 5;
+    public TextMeshProUGUI healthText;
+    public float damageDistance = 50f;
 
-    [Header("Görsel Efektler (Juice)")]
-    public GameObject explosionPrefab; // Hazýrladýðýmýz patlama efekti
+    [Header("Görsel Efektler")]
+    public GameObject explosionPrefab;
+
+    [Header("Boss Fight Sistemi")]
+    public int bossThreshold = 10;
+    public bool isBossActive = false;
+    public GameObject bossPrefab;
+
+    // Boss için olan skor ayrý, toplam skor ayrý.
+    private int bossScoreCounter = 0;
+
+    [Header("Oyun Sonu (Game Over) Sistemi")]
+    public int totalWordsTyped = 0; // Ablanýn oyun boyunca yazdýðý toplam kelime
+    public GameObject gameOverPanel; // Kararan ekran panelimiz
+    public TextMeshProUGUI finalScoreText; // Oyun sonu skoru
+    private bool isGameOver = false; // Oyun bitti mi kontrolü
 
     private void Start()
     {
         words = new List<Word>();
-        UpdateHealthUI(); // Oyun baþlarken caný ekrana yazdýr
+        UpdateHealthUI();
+        Time.timeScale = 1f; // Oyun baþladýðýnda zamanýn normal aktýðýndan emin ol
     }
 
     private void Update()
     {
-        // Zamanlayýcý (Kelime Üretimi)
-        if (Time.time >= nextWordTime)
+        if (isGameOver) return; // Oyun bittiyse hiçbir þey yapma!
+
+        if (!isBossActive && Time.time >= nextWordTime)
         {
             AddWord();
             nextWordTime = Time.time + wordSpawnDelay;
             wordSpawnDelay = Mathf.Max(0.5f, wordSpawnDelay * 0.98f);
         }
 
-        // --- YENÝ: ÇARPIÞMA KONTROLÜ ---
-        // Listeyi sondan baþa doðru tarýyoruz (Çünkü listeden kelime sileceðiz, hata vermemesi için)
         for (int i = words.Count - 1; i >= 0; i--)
         {
-            // Eðer kelimenin merkeze (Vector3.zero) uzaklýðý bizim belirlediðimiz hasar mesafesinden kýsaysa:
             if (words[i].display != null && Vector3.Distance(words[i].display.transform.localPosition, Vector3.zero) < damageDistance)
             {
-                TakeDamage(words[i]); // Hasar al!
+                TakeDamage(words[i]);
             }
         }
 
-        // Klavye Girdisi
         foreach (char letter in Input.inputString)
         {
             TypeLetter(letter);
@@ -68,10 +81,7 @@ public class WordManager : MonoBehaviour
     {
         if (hasActiveWord)
         {
-            if (activeWord.GetNextLetter() == letter)
-            {
-                activeWord.TypeLetter();
-            }
+            if (activeWord.GetNextLetter() == letter) activeWord.TypeLetter();
         }
         else
         {
@@ -87,46 +97,94 @@ public class WordManager : MonoBehaviour
             }
         }
 
-        // --- YENÝ: KELÝME BÝTÝNCE PATLAMA ---
         if (hasActiveWord && activeWord.WordTyped())
         {
-            // Kelimenin olduðu pozisyonda patlama efektini yarat!
             Instantiate(explosionPrefab, activeWord.display.transform.position, Quaternion.identity, wordSpawner.wordCanvas);
-
             hasActiveWord = false;
             words.Remove(activeWord);
+
+            totalWordsTyped++; // YENÝ: Toplam yazýlan kelimeyi 1 artýr
+
+            if (isBossActive)
+            {
+                isBossActive = false;
+                bossScoreCounter = 0;
+                nextWordTime = Time.time + 3f;
+            }
+            else
+            {
+                bossScoreCounter++;
+                if (bossScoreCounter >= bossThreshold && !isBossActive)
+                {
+                    StartBossFight();
+                }
+            }
         }
     }
 
-    // --- YENÝ: HASAR ALMA SÝSTEMÝ ---
     public void TakeDamage(Word hitWord)
     {
-        playerHealth--; // Caný 1 azalt
-        UpdateHealthUI(); // Ekranda güncelle
+        if (isBossActive) playerHealth -= 3;
+        else playerHealth--;
 
-        // Çarpan kelimeyi yok et ve listeden sil
+        UpdateHealthUI();
         hitWord.display.RemoveWord();
         words.Remove(hitWord);
 
-        // Eðer yazdýðýmýz kelime bize çarptýysa, klavye kilidini aç ki baþkasýna geçebilelim
-        if (activeWord == hitWord)
+        if (activeWord == hitWord) hasActiveWord = false;
+
+        if (isBossActive)
         {
-            hasActiveWord = false;
+            isBossActive = false;
+            bossScoreCounter = 0;
+            nextWordTime = Time.time + 2f;
         }
 
-        // Can sýfýrlandýysa
         if (playerHealth <= 0)
         {
-            Debug.Log("OYUN BÝTTÝ!");
-            // Ýleride buraya oyun bitiþ ekraný (Game Over) ekleyeceðiz
+            GameOver(); // YENÝ: Can sýfýrlanýnca bu fonksiyonu çaðýr
         }
     }
 
     private void UpdateHealthUI()
     {
-        if (healthText != null)
+        if (healthText != null) healthText.text = "CAN: " + playerHealth.ToString();
+    }
+
+    public void StartBossFight()
+    {
+        isBossActive = true;
+        for (int i = words.Count - 1; i >= 0; i--)
         {
-            healthText.text = "CAN: " + playerHealth.ToString();
+            if (words[i].display != null) Destroy(words[i].display.gameObject);
         }
+        words.Clear();
+        hasActiveWord = false;
+
+        string bossText = "adalet mulkun temelidir katiplik sinavinda basarili olmak icin hem hizli hem de hatasiz yazmaniz gerekmektedir derin bir nefes al ve parmaklarina guven";
+        Vector3 bossSpawnPos = new Vector3(800f, 0f, 0f);
+        GameObject bossObj = Instantiate(bossPrefab, bossSpawnPos, Quaternion.identity, wordSpawner.wordCanvas);
+        bossObj.GetComponent<RectTransform>().localPosition = bossSpawnPos;
+
+        WordDisplay bossDisplay = bossObj.GetComponent<WordDisplay>();
+        Word bossWord = new Word(bossText, bossDisplay);
+        words.Add(bossWord);
+    }
+
+    // --- YENÝ: OYUN BÝTÝÞ FONKSÝYONLARI ---
+    public void GameOver()
+    {
+        isGameOver = true;
+        Time.timeScale = 0f; // Zamaný tamamen durdur (Kelimeler donar)
+        gameOverPanel.SetActive(true); // Sakladýðýmýz paneli görünür yap
+        finalScoreText.text = "TOPLAM YAZILAN: " + totalWordsTyped.ToString(); // Skoru ekrana bas
+    }
+
+    // Butona basýnca çalýþacak fonksiyon
+    public void RestartGame()
+    {
+        // Zamaný tekrar normale döndür ve þu anki sahneyi baþtan yükle
+        Time.timeScale = 1f;
+        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 }
