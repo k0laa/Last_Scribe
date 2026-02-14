@@ -4,7 +4,7 @@ using TMPro;
 public class WordDisplay : MonoBehaviour
 {
     public TextMeshProUGUI textMesh;
-    public float fallSpeed = 1f;
+    public float speed = 150f; // UI piksel hýzýmýz (Artýk çok daha hýzlý!)
 
     public void SetWord(string word)
     {
@@ -13,19 +13,20 @@ public class WordDisplay : MonoBehaviour
 
     public void RemoveLetter()
     {
+        // Doðru yazýlan harfi görselden sil ve kalanlarý göster
         textMesh.text = textMesh.text.Remove(0, 1);
-        textMesh.color = Color.red; // Geçici olarak yazýlaný belli etmek için kýrmýzý yapalým, sonra RichText (HTML) ile daha profesyonel renklendireceðiz.
+        textMesh.color = Color.green; // Rengini yeþil yap
     }
 
     public void RemoveWord()
     {
-        // Burada ileride patlama efekti (Particle System) tetikleyeceðiz
         Destroy(gameObject);
     }
 
     private void Update()
     {
-        // Kelimenin merkeze (veya aþaðýya) doðru hareket etmesi
-        transform.Translate(0f, -fallSpeed * Time.deltaTime, 0f);
+        // UI nesnesini ekranýn merkezine (0,0 noktasýna) doðru hareket ettir
+        RectTransform rectTransform = GetComponent<RectTransform>();
+        rectTransform.localPosition = Vector3.MoveTowards(rectTransform.localPosition, Vector3.zero, speed * Time.deltaTime);
     }
 }

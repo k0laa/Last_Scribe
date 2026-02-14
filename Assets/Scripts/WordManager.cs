@@ -3,41 +3,53 @@ using UnityEngine;
 
 public class WordManager : MonoBehaviour
 {
-    public List<Word> words; // Ekrandaki aktif kelimeler listesi
-    public WordSpawner wordSpawner; // Kelimeleri üretecek script (Bunu birazdan ekleyeceðiz)
+    public List<Word> words;
+    public WordSpawner wordSpawner;
 
-    private bool hasActiveWord; // Bir kelimeye kilitlendik mi?
-    private Word activeWord;    // Üzerinde çalýþtýðýmýz aktif kelime
+    private bool hasActiveWord;
+    private Word activeWord;
+
+    [Header("Dalga Ayarlarý")]
+    public float wordSpawnDelay = 2.0f; // Baþlangýçta 2 saniyede 1 kelime gelir
+    private float nextWordTime = 0f;
 
     private void Start()
     {
         words = new List<Word>();
-        // Test için baþlangýçta 3 tane manuel kelime ekliyoruz
-        AddWord("katiplik");
-        AddWord("sinav");
-        AddWord("adalet");
-    }
-
-    // Ýleride veritabanýndan/array'den kelime çekeceðimiz fonksiyon
-    public void AddWord(string wordString)
-    {
-        WordDisplay wordDisplay = wordSpawner.SpawnWord();
-        Word newWord = new Word(wordString, wordDisplay);
-        words.Add(newWord);
     }
 
     private void Update()
     {
-        // Klavye girdilerini dinle
+        // Zamaný geldiyse yeni kelime üret (Dalga Sistemi)
+        if (Time.time >= nextWordTime)
+        {
+            AddWord();
+            nextWordTime = Time.time + wordSpawnDelay;
+
+            // Profesyonel Dokunuþ: Her kelimede oyun MÝKRO seviyede hýzlanýr (Zorluk eðrisi)
+            // Süreyi %2 kýsaltýyoruz ama 0.5 saniyenin altýna inmesine izin vermiyoruz
+            wordSpawnDelay = Mathf.Max(0.5f, wordSpawnDelay * 0.98f);
+        }
+
+        // Klavye dinleyici
         foreach (char letter in Input.inputString)
         {
             TypeLetter(letter);
         }
     }
 
+    public void AddWord()
+    {
+        // WordGenerator'dan rastgele kelime çek
+        string randomWord = WordGenerator.GetRandomWord();
+        WordDisplay wordDisplay = wordSpawner.SpawnWord();
+
+        Word newWord = new Word(randomWord, wordDisplay);
+        words.Add(newWord);
+    }
+
     public void TypeLetter(char letter)
     {
-        // Eðer zaten bir kelime yazmaya baþladýysak, sadece o kelimeyi kontrol et
         if (hasActiveWord)
         {
             if (activeWord.GetNextLetter() == letter)
@@ -45,7 +57,7 @@ public class WordManager : MonoBehaviour
                 activeWord.TypeLetter();
             }
         }
-        else // Eðer aktif kilitli bir kelime yoksa, basýlan harfle baþlayan bir kelime bul
+        else
         {
             foreach (Word word in words)
             {
@@ -54,12 +66,11 @@ public class WordManager : MonoBehaviour
                     activeWord = word;
                     hasActiveWord = true;
                     word.TypeLetter();
-                    break; // Ýlk bulduðuna kilitlen ve aramayý býrak
+                    break;
                 }
             }
         }
 
-        // Kilitlendiðimiz kelime bittiyse kilidi aç ve listeden çýkar
         if (hasActiveWord && activeWord.WordTyped())
         {
             hasActiveWord = false;
