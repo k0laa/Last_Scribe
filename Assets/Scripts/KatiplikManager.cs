@@ -33,7 +33,6 @@ public class KatiplikManager : MonoBehaviour
         isExamRunning = true;
         UpdateDisplay();
     }
-
     void Update()
     {
         if (!isExamRunning) return;
@@ -68,6 +67,12 @@ public class KatiplikManager : MonoBehaviour
                 }
             }
             UpdateDisplay();
+        }
+
+        // --- YENÝ EKLENEN KISIM: Metin tamamen bittiyse sýnavý bitir! ---
+        if (typedText.Length >= originalText.Length)
+        {
+            EndExam();
         }
     }
 

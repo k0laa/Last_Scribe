@@ -187,4 +187,10 @@ public class WordManager : MonoBehaviour
         Time.timeScale = 1f;
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
+
+    public void GoToMainMenu()
+    {
+        Time.timeScale = 1f; // Zamaný normale döndürmeyi unutmuyoruz!
+        SceneManager.LoadScene("AnaMenu"); // Ana menü sahnesinin adýný birebir ayný yazmalýsýn
+    }
 }
