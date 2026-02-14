@@ -5,7 +5,9 @@ public class Word
 {
     public string word;
     private int typeIndex;
-    private WordDisplay display; // Ekranda hangi UI nesnesine baðlý olduðunu bilir
+
+    // ÝÞTE BURAYI DEÐÝÞTÝRDÝK (public yaptýk)
+    public WordDisplay display;
 
     public Word(string _word, WordDisplay _display)
     {
@@ -15,26 +17,23 @@ public class Word
         display.SetWord(word);
     }
 
-    // Sýradaki harfi döndürür
     public char GetNextLetter()
     {
         return word[typeIndex];
     }
 
-    // Doðru harfe basýldýðýnda çalýþýr
     public void TypeLetter()
     {
         typeIndex++;
-        display.RemoveLetter(); // Görselden harfi sil/boya
+        display.RemoveLetter();
     }
 
-    // Kelimenin tamamý yazýldý mý?
     public bool WordTyped()
     {
         bool isTyped = (typeIndex >= word.Length);
         if (isTyped)
         {
-            display.RemoveWord(); // Ekranda yok et
+            display.RemoveWord();
         }
         return isTyped;
     }
