@@ -55,7 +55,7 @@ public class MetinSecimManager : MonoBehaviour
 
             if (PlayerPrefs.GetInt("FAV_" + fileName, 0) == 1)
             {
-                butonYazisi.text = "★ " + fileName;
+                butonYazisi.text = "♥ " + fileName;
                 butonYazisi.color = new Color(1f, 0.8f, 0f); // Yıldızlı olanları sarı/altın rengi yap
             }
 
