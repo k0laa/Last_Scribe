@@ -1,58 +1,90 @@
 using UnityEngine;
 using TMPro;
-using UnityEngine.SceneManagement; // Sahneler arasý geçiþ için eklendi
+using UnityEngine.UI;
+using UnityEngine.SceneManagement;
+using System.IO; // Dosya okuma kütüphanesi
+using System.Collections.Generic;
 
 public class KatiplikManager : MonoBehaviour
 {
-    [Header("Arayüz Baðlantýlarý")]
-    public TextMeshProUGUI targetTextDisplay;
+    [Header("A4 Kaðýdý Arayüzleri")]
+    public TextMeshProUGUI solMetinText; // Sol kaðýttaki orjinal metin
+    public TextMeshProUGUI sagMetinText; // Sað kaðýttaki bizim yazdýðýmýz
+
+    [Header("Göstergeler ve Kontroller")]
     public TextMeshProUGUI timerText;
     public TextMeshProUGUI statsText;
+    public Toggle renkYardimiToggle; // Renk yardýmý tuþu
 
-    [Header("Sýnav Sonu Ekraný")]
+    [Header("Sýnav Sonu Paneli")]
     public GameObject sonucPaneli;
     public TextMeshProUGUI netWpmText;
     public TextMeshProUGUI dogrulukText;
 
-    [Header("Sýnav Ayarlarý")]
-    private string originalText = "adalet bakanligi tarafindan duzenlenen zabit katipligi sinavinda basarili olmak icin uc dakika icinde en az doksan kelime yazmak gerekmektedir bu yuzden bol bol pratik yapilmalidir ve hatalar en aza indirilmelidir";
+    private string originalText = "";
+    private string typedText = ""; // Bizim sað kaðýda yazdýðýmýz saf metin
 
-    private string typedText = "";
-    private float timeRemaining = 180f; // 3 Dakika
+    private float timeRemaining = 180f;
     private bool isExamRunning = false;
 
     private int totalKeystrokes = 0;
     private int correctKeystrokes = 0;
 
-    // Sonuçlar için aklýnda tutacaðý sayýlar
-    private float finalWpm = 0f;
-    private float finalAccuracy = 0f;
-
     void Start()
     {
+        renkYardimiToggle.onValueChanged.AddListener(delegate { UpdateDisplays(); });
+
+        LoadSelectedTxtFile(); // ARTIK RASTGELE DEÐÝL, SEÇÝLENÝ YÜKLÜYORUZ
+
+        sagMetinText.text = "";
+        typedText = "";
+
         isExamRunning = true;
-        UpdateDisplay();
+        UpdateDisplays();
     }
+
+    // --- YENÝ: HAFIZADAKÝ SEÇÝLÝ DOSYAYI OKUMA ---
+    void LoadSelectedTxtFile()
+    {
+        // Metin seçim ekranýnda kaydettiðimiz dosya yolunu al
+        string secilenYol = PlayerPrefs.GetString("SecilenMetinYolu", "");
+
+        if (secilenYol != "" && File.Exists(secilenYol))
+        {
+            originalText = File.ReadAllText(secilenYol, System.Text.Encoding.UTF8);
+            originalText = originalText.Replace("\r", "").Trim();
+        }
+        else
+        {
+            // Eðer bir hata olursa veya direkt bu sahne açýlýrsa uyarý ver
+            originalText = "Lutfen once Metin Secim ekranindan bir metin secin!";
+        }
+    }
+
     void Update()
     {
         if (!isExamRunning) return;
 
+        // Süre kontrolü
         timeRemaining -= Time.deltaTime;
         UpdateTimerUI();
+        if (timeRemaining <= 0) { EndExam(); return; }
 
-        if (timeRemaining <= 0)
-        {
-            EndExam();
-            return;
-        }
-
+        // --- YENÝ: KLAVYE VE BACKSPACE YÖNETÝMÝ ---
         foreach (char c in Input.inputString)
         {
-            if (c == '\b')
+            if (c == '\b') // Backspace (Silme Tuþu)
             {
-                if (typedText.Length > 0) typedText = typedText.Substring(0, typedText.Length - 1);
+                if (typedText.Length > 0)
+                {
+                    typedText = typedText.Substring(0, typedText.Length - 1); // Saðdaki yazýdan 1 harf sil
+                }
             }
-            else if ((c == '\n') || (c == '\r')) continue;
+            else if ((c == '\n') || (c == '\r'))
+            {
+                // Katiplik sýnavlarýnda bazen enter gerekir, þimdilik metni bozmamasý için engelliyoruz veya boþluða çeviriyoruz
+                typedText += " ";
+            }
             else
             {
                 if (typedText.Length < originalText.Length)
@@ -66,30 +98,43 @@ public class KatiplikManager : MonoBehaviour
                     }
                 }
             }
-            UpdateDisplay();
-        }
 
-        // --- YENÝ EKLENEN KISIM: Metin tamamen bittiyse sýnavý bitir! ---
-        if (typedText.Length >= originalText.Length)
-        {
-            EndExam();
+            UpdateDisplays(); // Her tuþ basýmýnda her iki kaðýdý da güncelle
+
+            if (typedText.Length >= originalText.Length) { EndExam(); }
         }
     }
 
-    void UpdateDisplay()
+    // --- YENÝ: ÇÝFT KAÐIT GÜNCELLEME SÝSTEMÝ ---
+    void UpdateDisplays()
     {
-        string displayText = "";
-        for (int i = 0; i < originalText.Length; i++)
+        // 1. Sað Kaðýt: Doðrudan kullanýcýnýn yazdýklarýný gösterir (Word gibi)
+        sagMetinText.text = typedText;
+
+        // 2. Sol Kaðýt: Eðer renk yardýmý açýksa renklendirir, kapalýysa saf siyah gösterir
+        string leftDisplay = "";
+
+        if (renkYardimiToggle.isOn)
         {
-            if (i < typedText.Length)
+            for (int i = 0; i < originalText.Length; i++)
             {
-                if (typedText[i] == originalText[i]) displayText += $"<color=green>{originalText[i]}</color>";
-                else displayText += $"<color=red><u>{originalText[i]}</u></color>";
+                if (i < typedText.Length)
+                {
+                    if (typedText[i] == originalText[i]) leftDisplay += $"<color=green>{originalText[i]}</color>";
+                    else leftDisplay += $"<color=red><u>{originalText[i]}</u></color>";
+                }
+                else if (i == typedText.Length) leftDisplay += $"<color=#0000FF><b><u>{originalText[i]}</u></b></color>"; // Yazýlacak sýradaki harf (Mavi ve altý çizili)
+                else leftDisplay += $"<color=#000000>{originalText[i]}</color>"; // Yazýlmamýþ kýsým siyah
             }
-            else if (i == typedText.Length) displayText += $"<color=yellow><b>{originalText[i]}</b></color>";
-            else displayText += $"<color=#888888>{originalText[i]}</color>";
         }
-        targetTextDisplay.text = displayText;
+        else
+        {
+            // Renk yardýmý kapalýysa orjinal metin düz siyah görünür (Gerçek bir kaðýt gibi)
+            // Ýstersen okunabilirlik için oyuncunun nerede kaldýðýný belli eden ufacýk bir iþaret koyabiliriz ama þimdilik resmi formata uygun düz siyah.
+            leftDisplay = originalText;
+        }
+
+        solMetinText.text = leftDisplay;
         CalculateStats();
     }
 
@@ -105,33 +150,34 @@ public class KatiplikManager : MonoBehaviour
         float minutesElapsed = (180f - timeRemaining) / 60f;
         if (minutesElapsed > 0.05f)
         {
-            finalWpm = (totalKeystrokes / 5f) / minutesElapsed;
-            if (totalKeystrokes > 0) finalAccuracy = ((float)correctKeystrokes / totalKeystrokes) * 100f;
-
-            statsText.text = $"WPM: {Mathf.RoundToInt(finalWpm)} | Doðruluk: %{Mathf.RoundToInt(finalAccuracy)}";
+            float wpm = (totalKeystrokes / 5f) / minutesElapsed;
+            float accuracy = 0f;
+            if (totalKeystrokes > 0) accuracy = ((float)correctKeystrokes / totalKeystrokes) * 100f;
+            statsText.text = $"WPM: {Mathf.RoundToInt(wpm)} | Doðruluk: %{Mathf.RoundToInt(accuracy)}";
         }
     }
 
     void EndExam()
     {
         isExamRunning = false;
-        timeRemaining = 0;
-        UpdateTimerUI();
 
-        // Paneli aç ve sonuçlarý yazdýr
+        float minutesElapsed = (180f - timeRemaining) / 60f;
+        float finalWpm = 0f;
+        float finalAccuracy = 0f;
+
+        if (minutesElapsed > 0f)
+        {
+            finalWpm = (totalKeystrokes / 5f) / minutesElapsed;
+            if (totalKeystrokes > 0) finalAccuracy = ((float)correctKeystrokes / totalKeystrokes) * 100f;
+        }
+
         sonucPaneli.SetActive(true);
         netWpmText.text = "Net Hýz: " + Mathf.RoundToInt(finalWpm) + " WPM";
         dogrulukText.text = "Doðruluk: %" + Mathf.RoundToInt(finalAccuracy);
+        timeRemaining = 0;
+        UpdateTimerUI();
     }
 
-    // Butonlar için fonksiyonlar
-    public void RestartExam()
-    {
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
-    }
-
-    public void GoToMainMenu()
-    {
-        SceneManager.LoadScene("AnaMenu"); // Birazdan bu sahneyi oluþturacaðýz
-    }
+    public void RestartExam() { SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex); }
+    public void GoToMainMenu() { SceneManager.LoadScene("AnaMenu"); }
 }

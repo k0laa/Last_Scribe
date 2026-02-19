@@ -13,7 +13,7 @@ public class MenuManager : MonoBehaviour
     // Simülasyon moduna geçiþ
     public void SimulasyonModunaGit()
     {
-        SceneManager.LoadScene("KatiplikMode");
+        SceneManager.LoadScene("MetinSecimi");
     }
 
     // Oyundan çýkýþ

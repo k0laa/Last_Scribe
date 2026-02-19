@@ -210,7 +210,7 @@ GameObject:
   - component: {fileID: 299120356}
   - component: {fileID: 299120355}
   m_Layer: 0
-  m_Name: manin menu_0
+  m_Name: karakter_idle
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -750,7 +750,7 @@ Camera:
   m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 2
-  m_BackGroundColor: {r: 0.09352086, g: 0.1214246, b: 0.13962269, a: 0}
+  m_BackGroundColor: {r: 0.3886792, g: 0.0965831, b: 0.06380204, a: 0}
   m_projectionMatrixMode: 1
   m_GateFitMode: 2
   m_FOVAxisMode: 0
