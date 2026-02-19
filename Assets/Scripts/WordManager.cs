@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
-using UnityEngine.SceneManagement; // YENÝ: Sahneyi yeniden baþlatmak için gerekli kütüphane
+using UnityEngine.SceneManagement;
 
 public class WordManager : MonoBehaviour
 {
@@ -23,30 +23,40 @@ public class WordManager : MonoBehaviour
     [Header("Görsel Efektler")]
     public GameObject explosionPrefab;
 
+    [Header("Oyuncu Animasyonu")]
+    public Animator playerAnimator;
+    private float animTimer = 0f;
+    private float animSuresi = 0.15f;
+
+    [Header("Ses Efektleri (SFX)")]
+    public AudioSource sfxSource; // Ýkinci eklediðimiz boþ kaset çalar
+    public AudioClip dogruTusSesi;
+    public AudioClip yanlisTusSesi;
+    public AudioClip patlamaSesi;
+    public AudioClip bossMuzigi; // Ýsteðe baðlý, boss gelince çalacak ses
+
     [Header("Boss Fight Sistemi")]
     public int bossThreshold = 10;
     public bool isBossActive = false;
     public GameObject bossPrefab;
-
-    // Boss için olan skor ayrý, toplam skor ayrý.
     private int bossScoreCounter = 0;
 
-    [Header("Oyun Sonu (Game Over) Sistemi")]
-    public int totalWordsTyped = 0; // Ablanýn oyun boyunca yazdýðý toplam kelime
-    public GameObject gameOverPanel; // Kararan ekran panelimiz
-    public TextMeshProUGUI finalScoreText; // Oyun sonu skoru
-    private bool isGameOver = false; // Oyun bitti mi kontrolü
+    [Header("Oyun Sonu Sistemi")]
+    public int totalWordsTyped = 0;
+    public GameObject gameOverPanel;
+    public TextMeshProUGUI finalScoreText;
+    private bool isGameOver = false;
 
     private void Start()
     {
         words = new List<Word>();
         UpdateHealthUI();
-        Time.timeScale = 1f; // Oyun baþladýðýnda zamanýn normal aktýðýndan emin ol
+        Time.timeScale = 1f;
     }
 
     private void Update()
     {
-        if (isGameOver) return; // Oyun bittiyse hiçbir þey yapma!
+        if (isGameOver) return;
 
         if (!isBossActive && Time.time >= nextWordTime)
         {
@@ -63,9 +73,25 @@ public class WordManager : MonoBehaviour
             }
         }
 
+        // Animasyon Zamanlayýcýsý
+        if (animTimer > 0)
+        {
+            animTimer -= Time.deltaTime;
+            if (animTimer <= 0 && playerAnimator != null)
+            {
+                playerAnimator.SetBool("isTyping", false);
+            }
+        }
+
         foreach (char letter in Input.inputString)
         {
             TypeLetter(letter);
+
+            if (playerAnimator != null)
+            {
+                playerAnimator.SetBool("isTyping", true);
+                animTimer = animSuresi;
+            }
         }
     }
 
@@ -79,9 +105,15 @@ public class WordManager : MonoBehaviour
 
     public void TypeLetter(char letter)
     {
+        bool isCorrectHit = false; // Tuþa doðru mu bastýk kontrolü
+
         if (hasActiveWord)
         {
-            if (activeWord.GetNextLetter() == letter) activeWord.TypeLetter();
+            if (activeWord.GetNextLetter() == letter)
+            {
+                activeWord.TypeLetter();
+                isCorrectHit = true;
+            }
         }
         else
         {
@@ -92,18 +124,32 @@ public class WordManager : MonoBehaviour
                     activeWord = word;
                     hasActiveWord = true;
                     word.TypeLetter();
+                    isCorrectHit = true;
                     break;
                 }
             }
         }
 
+        // --- YENÝ EKLENEN: SES ÇALMA MANTIÐI ---
+        if (sfxSource != null)
+        {
+            // Eðer tuþa doðru bastýysak doðru sesi, yanlýþ bastýysak yanlýþ sesi tek seferlik (PlayOneShot) çal
+            if (isCorrectHit)
+                sfxSource.PlayOneShot(dogruTusSesi);
+            else
+                sfxSource.PlayOneShot(yanlisTusSesi);
+        }
+
         if (hasActiveWord && activeWord.WordTyped())
         {
             Instantiate(explosionPrefab, activeWord.display.transform.position, Quaternion.identity, wordSpawner.wordCanvas);
+
+            // Kelime patlayýnca patlama sesini çal
+            if (sfxSource != null && patlamaSesi != null) sfxSource.PlayOneShot(patlamaSesi);
+
             hasActiveWord = false;
             words.Remove(activeWord);
-
-            totalWordsTyped++; // YENÝ: Toplam yazýlan kelimeyi 1 artýr
+            totalWordsTyped++;
 
             if (isBossActive)
             {
@@ -127,6 +173,9 @@ public class WordManager : MonoBehaviour
         if (isBossActive) playerHealth -= 3;
         else playerHealth--;
 
+        // Ekstra: Can gidince uyarý sesi olarak yanlýþ sesi biraz yüksek çalabiliriz
+        if (sfxSource != null) sfxSource.PlayOneShot(yanlisTusSesi, 1.5f);
+
         UpdateHealthUI();
         hitWord.display.RemoveWord();
         words.Remove(hitWord);
@@ -140,10 +189,7 @@ public class WordManager : MonoBehaviour
             nextWordTime = Time.time + 2f;
         }
 
-        if (playerHealth <= 0)
-        {
-            GameOver(); // YENÝ: Can sýfýrlanýnca bu fonksiyonu çaðýr
-        }
+        if (playerHealth <= 0) GameOver();
     }
 
     private void UpdateHealthUI()
@@ -154,6 +200,10 @@ public class WordManager : MonoBehaviour
     public void StartBossFight()
     {
         isBossActive = true;
+
+        // Boss gelirken o korkutucu sesi çal
+        if (sfxSource != null && bossMuzigi != null) sfxSource.PlayOneShot(bossMuzigi);
+
         for (int i = words.Count - 1; i >= 0; i--)
         {
             if (words[i].display != null) Destroy(words[i].display.gameObject);
@@ -171,26 +221,23 @@ public class WordManager : MonoBehaviour
         words.Add(bossWord);
     }
 
-    // --- YENÝ: OYUN BÝTÝÞ FONKSÝYONLARI ---
     public void GameOver()
     {
         isGameOver = true;
-        Time.timeScale = 0f; // Zamaný tamamen durdur (Kelimeler donar)
-        gameOverPanel.SetActive(true); // Sakladýðýmýz paneli görünür yap
-        finalScoreText.text = "TOPLAM YAZILAN: " + totalWordsTyped.ToString(); // Skoru ekrana bas
+        Time.timeScale = 0f;
+        gameOverPanel.SetActive(true);
+        finalScoreText.text = "TOPLAM YAZILAN: " + totalWordsTyped.ToString();
     }
 
-    // Butona basýnca çalýþacak fonksiyon
     public void RestartGame()
     {
-        // Zamaný tekrar normale döndür ve þu anki sahneyi baþtan yükle
         Time.timeScale = 1f;
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 
     public void GoToMainMenu()
     {
-        Time.timeScale = 1f; // Zamaný normale döndürmeyi unutmuyoruz!
-        SceneManager.LoadScene("AnaMenu"); // Ana menü sahnesinin adýný birebir ayný yazmalýsýn
+        Time.timeScale = 1f;
+        SceneManager.LoadScene("AnaMenu");
     }
 }
