@@ -1001,9 +1001,9 @@ MonoBehaviour:
   playerAnimator: {fileID: 1581826491}
   sfxSource: {fileID: 862140490}
   dogruTusSesi: {fileID: 8300000, guid: 202f72fbb7115df42a955a2a2c2eaf98, type: 3}
-  yanlisTusSesi: {fileID: 8300000, guid: a6dbed7a15df1d24f9422371703cd0c1, type: 3}
+  yanlisTusSesi: {fileID: 8300000, guid: c707aefaec314f34e816ad8ef00a5147, type: 3}
   patlamaSesi: {fileID: 8300000, guid: 7ac1a05e230fd954786696161a7ed5ef, type: 3}
-  bossMuzigi: {fileID: 0}
+  bossMuzigi: {fileID: 8300000, guid: 202f72fbb7115df42a955a2a2c2eaf98, type: 3}
   bossThreshold: 10
   isBossActive: 0
   bossPrefab: {fileID: 868473568639672548, guid: 6eda0659301d6654a903ad9a4d8965ae, type: 3}
@@ -1052,7 +1052,7 @@ AudioSource:
   m_audioClip: {fileID: 0}
   m_Resource: {fileID: 0}
   m_PlayOnAwake: 0
-  m_Volume: 1
+  m_Volume: 0.05
   m_Pitch: 1
   Loop: 0
   Mute: 0
