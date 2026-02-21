@@ -4,7 +4,7 @@ using TMPro;
 public class WordDisplay : MonoBehaviour
 {
     public TextMeshProUGUI textMesh;
-    public float speed = 150f; // UI piksel hýzýmýz (Artýk çok daha hýzlý!)
+    public float speed; // UI piksel hýzýmýz (Artýk çok daha hýzlý!)
 
     public void SetWord(string word)
     {
@@ -14,8 +14,8 @@ public class WordDisplay : MonoBehaviour
     public void RemoveLetter()
     {
         // Doðru yazýlan harfi görselden sil ve kalanlarý göster
-        textMesh.text = textMesh.text.Remove(0, 1);
-        textMesh.color = Color.green; // Rengini yeþil yap
+        textMesh.text = textMesh.text.Remove(0, 1); 
+        textMesh.color = new Color32(255, 124, 0, 255);
     }
 
     public void RemoveWord()
