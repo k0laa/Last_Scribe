@@ -17,6 +17,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/MetinSecimi.unity
     guid: 32decef20458c5242bf8bb90cdbaf281
+  - enabled: 1
+    path: Assets/Scenes/Istatistikler.unity
+    guid: eb6507f559009ba42a1135efe8e2054d
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
   m_UseUCBPForAssetBundles: 0

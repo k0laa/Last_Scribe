@@ -300,6 +300,20 @@ public class KatiplikManager : MonoBehaviour
         durumText.text = basarili ? "DURUM: BAÞARILI" : "DURUM: BAÞARISIZ";
         durumText.color = basarili ? Color.green : Color.red;
         sebepText.text = sebep;
+
+
+        // --- VERÝTABANINA KAYIT SÝSTEMÝ ---
+        // Sýnavýn kaç dakika sürdüðünü bul (Erken bittiyse diye)
+        float minutesElapsed = (180f - timeRemaining) / 60f;
+        int hesaplananWpm = 0;
+        if (minutesElapsed > 0.05f) hesaplananWpm = Mathf.RoundToInt(netKelime / minutesElapsed);
+
+        // Doðruluk oranýný hesapla (Doðru Kelime / Toplam Yazýlan)
+        float hesaplananDogruluk = 0f;
+        if (toplamYazilanKelime > 0) hesaplananDogruluk = ((float)currentDogru / toplamYazilanKelime) * 100f;
+
+        // Verileri JSON dosyasýna gönder
+        StatManager.SaveSession("Katiplik", hesaplananWpm, hesaplananDogruluk, toplamYazilanKelime, 0, netKelime);
     }
 
     public void RestartExam() { SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex); }

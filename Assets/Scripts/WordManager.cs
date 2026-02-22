@@ -298,6 +298,9 @@ public class WordManager : MonoBehaviour
             $"PATLATILAN KELÝME: {totalWordsTyped}\n\n" +
             $"HIZ (WPM): {wpm}\n" +
             $"DOÐRULUK: %{Mathf.RoundToInt(accuracy)}";
+
+        // Arcade modunda net skor yoktur, o yüzden 0 gönderiyoruz
+        StatManager.SaveSession("Arcade", wpm, accuracy, totalWordsTyped, currentLevel, 0);
     }
 
     public void RestartGame() { Time.timeScale = 1f; SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex); }

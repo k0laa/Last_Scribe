@@ -15,6 +15,10 @@ public class MenuManager : MonoBehaviour
     {
         SceneManager.LoadScene("MetinSecimi");
     }
+    public void IstatistiklereGit()
+    {
+        SceneManager.LoadScene("Istatistikler");
+    }
 
     // Oyundan çýkýþ
     public void OyundanCik()
