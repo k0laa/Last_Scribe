@@ -1,10 +1,16 @@
 using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
+using UnityEngine.UI; // Slider için gerekli kütüphane
 using UnityEngine.SceneManagement;
 
 public class WordManager : MonoBehaviour
 {
+    [Header("Oyun Akýþý ve Baþlangýç")]
+    public GameObject startPanel; // Baþlama ekraný
+    public bool hasStarted = false; // Oyun baþladý mý?
+    private float gameStartTime = 0f; // WPM hesaplamak için süreyi tutacaðýz
+
     public List<Word> words;
     public WordSpawner wordSpawner;
 
@@ -12,26 +18,28 @@ public class WordManager : MonoBehaviour
     private Word activeWord;
 
     [Header("Matematiksel Zorluk (Flow Sistemi)")]
-    public int currentLevel = 1; // Oyuncunun þu anki dalgasý/seviyesi
-    public float baseSpawnDelay = 2.5f; // Baþlangýç doðma süresi
-    public float baseWordSpeed = 80f; // Baþlangýç kelime düþme hýzý (Yavaþ baþlar)
+    public TextMeshProUGUI levelText; // Seviye yazýsý
+    public int currentLevel = 1;
+    public float baseSpawnDelay = 2.5f;
+    public float baseWordSpeed = 80f;
 
-    // Anlýk olarak hesaplanacak deðerler
     private float currentSpawnDelay;
     private float nextWordTime = 0f;
 
-    [Header("Oyuncu ve Can Sistemi")]
-    public int playerHealth = 5;
-    public TextMeshProUGUI healthText;
+    [Header("Can Sistemi")]
+    public Slider healthBar; // Can çubuðu
+    public float maxHealth = 100f;
+    private float currentHealth;
+    public float normalDamage = 10f; // Normal kelime 10 can götürür
+    public float bossDamage = 30f; // Boss 30 can götürür
     public float damageDistance = 50f;
 
-    [Header("Görsel Efektler")]
+    [Header("Görsel ve Ses Efektleri")]
     public GameObject explosionPrefab;
     public Animator playerAnimator;
     private float animTimer = 0f;
     private float animSuresi = 0.15f;
 
-    [Header("Ses Efektleri (SFX)")]
     public AudioSource sfxSource;
     public AudioClip dogruTusSesi;
     public AudioClip yanlisTusSesi;
@@ -41,30 +49,55 @@ public class WordManager : MonoBehaviour
     [Header("Boss Fight Sistemi")]
     public bool isBossActive = false;
     public GameObject bossPrefab;
-    private int bossScoreCounter = 0; // Bu seviyede kesilen kelime sayýsý
+    private int bossScoreCounter = 0;
 
-    [Header("Oyun Sonu Sistemi")]
-    public int totalWordsTyped = 0;
+    [Header("Oyun Sonu ve Ýstatistikler")]
     public GameObject gameOverPanel;
-    public TextMeshProUGUI finalScoreText;
+    public TextMeshProUGUI finalStatsText; // Detaylý oyun sonu yazýsý
     private bool isGameOver = false;
+
+    // Detaylý Ýstatistik Deðiþkenleri
+    private int totalWordsTyped = 0;
+    private int correctKeystrokes = 0;
+    private int wrongKeystrokes = 0;
 
     private void Start()
     {
         WordGenerator.LoadWordsFromTxt();
         words = new List<Word>();
-        UpdateHealthUI();
-        Time.timeScale = 1f;
 
-        // Ýlk seviyenin hýzýný hesapla
+        // Can barýný ayarla
+        currentHealth = maxHealth;
+        if (healthBar != null)
+        {
+            healthBar.maxValue = maxHealth;
+            healthBar.value = currentHealth;
+        }
+
+        // Oyun baþlangýç ayarlarý
+        hasStarted = false;
+        startPanel.SetActive(true); // Baþla panelini göster
+        gameOverPanel.SetActive(false);
+        UpdateLevelUI();
+
+        Time.timeScale = 1f;
         CalculateDifficulty();
+    }
+
+    // BUTONA BASILDIÐINDA ÇALIÞACAK FONKSÝYON
+    public void OyunaBasla()
+    {
+        hasStarted = true;
+        startPanel.SetActive(false); // Paneli gizle
+        gameStartTime = Time.time; // Süreyi baþlat
+        nextWordTime = Time.time + 1f; // 1 saniye sonra ilk kelime gelsin
     }
 
     private void Update()
     {
-        if (isGameOver) return;
+        // Eðer oyun baþlamadýysa veya bittiyse klavyeyi okuma, kelime üretme!
+        if (!hasStarted || isGameOver) return;
 
-        // Eðer boss yoksa ve zamaný geldiyse kelime üret
         if (!isBossActive && Time.time >= nextWordTime)
         {
             AddWord();
@@ -96,27 +129,23 @@ public class WordManager : MonoBehaviour
         }
     }
 
-    // --- PROFESYONEL ZORLUK DENKLEMÝ ---
     private void CalculateDifficulty()
     {
-        // 1. Doðma Süresi (Spawn Delay):
-        // Seviye arttýkça (0.2sn) daha hýzlý baþlar. Dalga içinde ilerledikçe (0.05sn) hýzlanýr.
-        // Ama insan limitini aþmamasý için Asla 0.4 saniyenin altýna düþmez (Hard Cap).
-        currentSpawnDelay = Mathf.Max(0.4f, baseSpawnDelay - (currentLevel * 0.2f) - (bossScoreCounter * 0.05f));
+        currentSpawnDelay = Mathf.Max(0.4f, baseSpawnDelay - (currentLevel * 0.1f) - (bossScoreCounter * 0.03f));
+    }
+
+    private void UpdateLevelUI()
+    {
+        if (levelText != null) levelText.text = "SEVÝYE: " + currentLevel;
     }
 
     public void AddWord()
     {
-        CalculateDifficulty(); // Her kelime çýkýþýnda zorluðu mikro düzeyde artýr
-
-        // 2. Kelime Düþme Hýzý (Word Speed):
-        // Temel hýz + (Seviye x 15) + (O dalgadaki skor x 2)
-        // Ýnsan gözünün takibini bozmamak için maksimum hýz 400'e sabitlendi (Max Cap).
-        float currentWordSpeed = Mathf.Min(400f, baseWordSpeed + (currentLevel * 15f) + (bossScoreCounter * 2f));
+        CalculateDifficulty();
+        float currentWordSpeed = Mathf.Min(400f, baseWordSpeed + (currentLevel * 5f) + (bossScoreCounter * 1.5f));
 
         string randomWord = WordGenerator.GetRandomWord();
-        WordDisplay wordDisplay = wordSpawner.SpawnWord(currentWordSpeed); // Hýzý fabrikaya gönder!
-
+        WordDisplay wordDisplay = wordSpawner.SpawnWord(currentWordSpeed);
         Word newWord = new Word(randomWord, wordDisplay);
         words.Add(newWord);
     }
@@ -147,10 +176,14 @@ public class WordManager : MonoBehaviour
             }
         }
 
+        // Ýstatistik için tuþ vuruþlarýný kaydet
+        if (isCorrectHit) correctKeystrokes++;
+        else wrongKeystrokes++;
+
         if (sfxSource != null)
         {
             if (isCorrectHit) sfxSource.PlayOneShot(dogruTusSesi);
-            else sfxSource.PlayOneShot(yanlisTusSesi);
+            else sfxSource.PlayOneShot(yanlisTusSesi, 0.7f); // Yanlýþ sesi çok az kýstým
         }
 
         if (hasActiveWord && activeWord.WordTyped())
@@ -164,39 +197,33 @@ public class WordManager : MonoBehaviour
 
             if (isBossActive)
             {
-                // --- BOSS KESÝLDÝ - SEVÝYE ATLA! (TESTERE DÝÞÝ EÐRÝSÝ) ---
                 isBossActive = false;
                 bossScoreCounter = 0;
-                currentLevel++; // Seviyeyi artýr
+                currentLevel++;
+                UpdateLevelUI(); // Ekranda seviyeyi güncelle
 
-                // Oyuncuya nefes almasý için 3 saniye süre ver
                 nextWordTime = Time.time + 3f;
-                CalculateDifficulty(); // Hýzlarý yeni seviyeye göre sýfýrla/ayarla
+                CalculateDifficulty();
             }
             else
             {
                 bossScoreCounter++;
-
-                // 3. Dinamik Boss Eþiði (Boss Threshold):
-                // Ýlk seviyede 10 kelimede boss gelir. Seviye 2'de 12, Seviye 3'te 14 kelimede...
-                int targetBossScore = 8 + (currentLevel * 2);
-
-                if (bossScoreCounter >= targetBossScore && !isBossActive)
-                {
-                    StartBossFight();
-                }
+                int targetBossScore = 8 + (currentLevel * 4);
+                if (bossScoreCounter >= targetBossScore && !isBossActive) StartBossFight();
             }
         }
     }
 
     public void TakeDamage(Word hitWord)
     {
-        if (isBossActive) playerHealth -= 3;
-        else playerHealth--;
+        if (isBossActive) currentHealth -= bossDamage;
+        else currentHealth -= normalDamage;
 
         if (sfxSource != null) sfxSource.PlayOneShot(yanlisTusSesi, 1.5f);
 
-        UpdateHealthUI();
+        // Can barýný (Slider) güncelle
+        if (healthBar != null) healthBar.value = currentHealth;
+
         hitWord.display.RemoveWord();
         words.Remove(hitWord);
 
@@ -204,17 +231,18 @@ public class WordManager : MonoBehaviour
 
         if (isBossActive)
         {
-            // Boss bize çarptýysa seviye atlama, ayný seviyeyi tekrar dene
             isBossActive = false;
             bossScoreCounter = 0;
             CalculateDifficulty();
             nextWordTime = Time.time + 2f;
         }
 
-        if (playerHealth <= 0) GameOver();
+        if (currentHealth <= 0)
+        {
+            currentHealth = 0; // Eksiye düþmesini engelle
+            GameOver();
+        }
     }
-
-    private void UpdateHealthUI() { if (healthText != null) healthText.text = "CAN: " + playerHealth.ToString(); }
 
     public void StartBossFight()
     {
@@ -228,26 +256,50 @@ public class WordManager : MonoBehaviour
         words.Clear();
         hasActiveWord = false;
 
-        // 4. Dinamik Boss Zorluðu:
-        // Boss kelime sayýsý seviyeyle uzar (Örn: Seviye 1 = 10 kelime, Seviye 2 = 12 kelime...)
-        int bossWordCount = 8 + (currentLevel * 2);
+        int bossWordCount = Mathf.Min(18, 8 + (currentLevel * 2));
         string bossText = WordGenerator.GetRandomBossText(bossWordCount);
-
-        // Boss'un yaklaþma hýzý da seviyeyle mikro düzeyde artar
-        float bossSpeed = 8f + (currentLevel * 1.5f);
+        float bossSpeed = 13f + (currentLevel * 2.5f);
 
         Vector3 bossSpawnPos = new Vector3(800f, 0f, 0f);
         GameObject bossObj = Instantiate(bossPrefab, bossSpawnPos, Quaternion.identity, wordSpawner.wordCanvas);
         bossObj.GetComponent<RectTransform>().localPosition = bossSpawnPos;
 
         WordDisplay bossDisplay = bossObj.GetComponent<WordDisplay>();
-        bossDisplay.speed = bossSpeed; // Boss hýzýný uygula
+        bossDisplay.speed = bossSpeed;
 
         Word bossWord = new Word(bossText, bossDisplay);
         words.Add(bossWord);
     }
 
-    public void GameOver() { isGameOver = true; Time.timeScale = 0f; gameOverPanel.SetActive(true); finalScoreText.text = "TOPLAM YAZILAN: " + totalWordsTyped.ToString(); }
+    public void GameOver()
+    {
+        isGameOver = true;
+        Time.timeScale = 0f;
+        gameOverPanel.SetActive(true);
+
+        // DETAYLI ÝSTATÝSTÝK HESAPLAMALARI
+        float timeElapsedMinutes = (Time.time - gameStartTime) / 60f;
+        int wpm = 0;
+        if (timeElapsedMinutes > 0.05f)
+        {
+            wpm = Mathf.RoundToInt((totalWordsTyped) / timeElapsedMinutes);
+        }
+
+        float accuracy = 0f;
+        int totalStrokes = correctKeystrokes + wrongKeystrokes;
+        if (totalStrokes > 0)
+        {
+            accuracy = ((float)correctKeystrokes / totalStrokes) * 100f;
+        }
+
+        // Çok satýrlý þýk rapor çýktýsý
+        finalStatsText.text =
+            $"ULAÞILAN SEVÝYE: {currentLevel}\n" +
+            $"PATLATILAN KELÝME: {totalWordsTyped}\n\n" +
+            $"HIZ (WPM): {wpm}\n" +
+            $"DOÐRULUK: %{Mathf.RoundToInt(accuracy)}";
+    }
+
     public void RestartGame() { Time.timeScale = 1f; SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex); }
     public void GoToMainMenu() { Time.timeScale = 1f; SceneManager.LoadScene("AnaMenu"); }
 }
