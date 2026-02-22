@@ -1,15 +1,16 @@
 using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
-using UnityEngine.UI; // Slider için gerekli kütüphane
+using UnityEngine.UI;
 using UnityEngine.SceneManagement;
+using System.Linq; // Yeni veri analizleri için gerekli
 
 public class WordManager : MonoBehaviour
 {
     [Header("Oyun Akýþý ve Baþlangýç")]
-    public GameObject startPanel; // Baþlama ekraný
-    public bool hasStarted = false; // Oyun baþladý mý?
-    private float gameStartTime = 0f; // WPM hesaplamak için süreyi tutacaðýz
+    public GameObject startPanel;
+    public bool hasStarted = false;
+    private float effectiveGameTime = 0f;
 
     public List<Word> words;
     public WordSpawner wordSpawner;
@@ -18,20 +19,19 @@ public class WordManager : MonoBehaviour
     private Word activeWord;
 
     [Header("Matematiksel Zorluk (Flow Sistemi)")]
-    public TextMeshProUGUI levelText; // Seviye yazýsý
+    public TextMeshProUGUI levelText;
     public int currentLevel = 1;
     public float baseSpawnDelay = 2.5f;
     public float baseWordSpeed = 80f;
-
     private float currentSpawnDelay;
     private float nextWordTime = 0f;
 
-    [Header("Can Sistemi")]
-    public Slider healthBar; // Can çubuðu
+    [Header("Geliþmiþ Can Sistemi (100 HP)")]
+    public Slider healthBar;
     public float maxHealth = 100f;
     private float currentHealth;
-    public float normalDamage = 10f; // Normal kelime 10 can götürür
-    public float bossDamage = 30f; // Boss 30 can götürür
+    public float normalDamage = 10f;
+    public float bossDamage = 30f;
     public float damageDistance = 50f;
 
     [Header("Görsel ve Ses Efektleri")]
@@ -53,20 +53,34 @@ public class WordManager : MonoBehaviour
 
     [Header("Oyun Sonu ve Ýstatistikler")]
     public GameObject gameOverPanel;
-    public TextMeshProUGUI finalStatsText; // Detaylý oyun sonu yazýsý
+    public TextMeshProUGUI finalStatsText;
     private bool isGameOver = false;
 
-    // Detaylý Ýstatistik Deðiþkenleri
+    // --- SÜPER TELEMETRÝ SENSÖRLERÝ ---
+    private string sessionStartTime;
     private int totalWordsTyped = 0;
     private int correctKeystrokes = 0;
     private int wrongKeystrokes = 0;
+    private int currentCombo = 0;
+    private int maxCombo = 0;
+
+    private Dictionary<string, int> letterErrorDict = new Dictionary<string, int>();
+    private List<KeyConfusion> keyConfusionList = new List<KeyConfusion>();
+    private List<string> failedWordsList = new List<string>();
+
+    private float lastKeystrokeTime = 0f;
+    private float longestIdleTime = 0f;
+    private float timeToFirstKeystroke = 0f;
+    private bool isFirstKeystrokePressed = false;
+
+    private int frameCount = 0;
+    private float totalDeltaTime = 0f;
 
     private void Start()
     {
         WordGenerator.LoadWordsFromTxt();
         words = new List<Word>();
 
-        // Can barýný ayarla
         currentHealth = maxHealth;
         if (healthBar != null)
         {
@@ -74,9 +88,11 @@ public class WordManager : MonoBehaviour
             healthBar.value = currentHealth;
         }
 
-        // Oyun baþlangýç ayarlarý
         hasStarted = false;
-        startPanel.SetActive(true); // Baþla panelini göster
+        effectiveGameTime = 0f;
+        sessionStartTime = System.DateTime.Now.ToString("HH:mm:ss"); // Saati kaydet
+
+        startPanel.SetActive(true);
         gameOverPanel.SetActive(false);
         UpdateLevelUI();
 
@@ -84,19 +100,32 @@ public class WordManager : MonoBehaviour
         CalculateDifficulty();
     }
 
-    // BUTONA BASILDIÐINDA ÇALIÞACAK FONKSÝYON
     public void OyunaBasla()
     {
         hasStarted = true;
-        startPanel.SetActive(false); // Paneli gizle
-        gameStartTime = Time.time; // Süreyi baþlat
-        nextWordTime = Time.time + 1f; // 1 saniye sonra ilk kelime gelsin
+        startPanel.SetActive(false);
+        nextWordTime = Time.time + 1f;
+        lastKeystrokeTime = Time.time; // Idle time ölçümü için baþlangýç zamaný
     }
 
     private void Update()
     {
-        // Eðer oyun baþlamadýysa veya bittiyse klavyeyi okuma, kelime üretme!
         if (!hasStarted || isGameOver) return;
+
+        // FPS Ölçeði
+        frameCount++;
+        totalDeltaTime += Time.deltaTime;
+
+        if (words.Count > 0 || isBossActive)
+        {
+            effectiveGameTime += Time.deltaTime;
+
+            // Ýlk tuþa basma süresini ölç (Ekranda kelime varken ama tuþa basýlmadýysa)
+            if (!isFirstKeystrokePressed)
+            {
+                timeToFirstKeystroke += Time.deltaTime;
+            }
+        }
 
         if (!isBossActive && Time.time >= nextWordTime)
         {
@@ -131,18 +160,15 @@ public class WordManager : MonoBehaviour
 
     private void CalculateDifficulty()
     {
-        currentSpawnDelay = Mathf.Max(0.4f, baseSpawnDelay - (currentLevel * 0.1f) - (bossScoreCounter * 0.03f));
+        currentSpawnDelay = Mathf.Max(0.4f, baseSpawnDelay - (currentLevel * 0.2f) - (bossScoreCounter * 0.05f));
     }
 
-    private void UpdateLevelUI()
-    {
-        if (levelText != null) levelText.text = "SEVÝYE: " + currentLevel;
-    }
+    private void UpdateLevelUI() { if (levelText != null) levelText.text = "SEVÝYE: " + currentLevel; }
 
     public void AddWord()
     {
         CalculateDifficulty();
-        float currentWordSpeed = Mathf.Min(400f, baseWordSpeed + (currentLevel * 5f) + (bossScoreCounter * 1.5f));
+        float currentWordSpeed = Mathf.Min(400f, baseWordSpeed + (currentLevel * 15f) + (bossScoreCounter * 2f));
 
         string randomWord = WordGenerator.GetRandomWord();
         WordDisplay wordDisplay = wordSpawner.SpawnWord(currentWordSpeed);
@@ -152,7 +178,15 @@ public class WordManager : MonoBehaviour
 
     public void TypeLetter(char letter)
     {
+        isFirstKeystrokePressed = true; // Ýlk tuþa basýldý, refleks kronometresi durdu
+
+        // Idle (Duraksama) Süresini Hesapla
+        float timeSinceLastKey = Time.time - lastKeystrokeTime;
+        if (timeSinceLastKey > longestIdleTime) longestIdleTime = timeSinceLastKey;
+        lastKeystrokeTime = Time.time;
+
         bool isCorrectHit = false;
+
         if (hasActiveWord)
         {
             if (activeWord.GetNextLetter() == letter)
@@ -176,14 +210,41 @@ public class WordManager : MonoBehaviour
             }
         }
 
-        // Ýstatistik için tuþ vuruþlarýný kaydet
-        if (isCorrectHit) correctKeystrokes++;
-        else wrongKeystrokes++;
+        if (isCorrectHit)
+        {
+            correctKeystrokes++;
+            currentCombo++;
+            if (currentCombo > maxCombo) maxCombo = currentCombo;
+        }
+        else
+        {
+            wrongKeystrokes++;
+            currentCombo = 0;
+
+            // --- AJAN SENSÖRÜ: Kas Hafýzasý Þaþýrmasý (A yerine S'ye mi bastý?) ---
+            if (hasActiveWord)
+            {
+                string expectedStr = activeWord.GetNextLetter().ToString().ToUpper();
+                string pressedStr = letter.ToString().ToUpper();
+
+                // Düz Hata Çetelesi
+                if (letterErrorDict.ContainsKey(expectedStr)) letterErrorDict[expectedStr]++;
+                else letterErrorDict.Add(expectedStr, 1);
+
+                // Tuþ Karýþtýrma Çetelesi (Key Confusion)
+                if (pressedStr != " " && pressedStr != "") // Boþluk vb. kaydetmeye gerek yok
+                {
+                    KeyConfusion existingKvp = keyConfusionList.FirstOrDefault(k => k.expectedChar == expectedStr && k.pressedChar == pressedStr);
+                    if (existingKvp != null) existingKvp.count++;
+                    else keyConfusionList.Add(new KeyConfusion { expectedChar = expectedStr, pressedChar = pressedStr, count = 1 });
+                }
+            }
+        }
 
         if (sfxSource != null)
         {
             if (isCorrectHit) sfxSource.PlayOneShot(dogruTusSesi);
-            else sfxSource.PlayOneShot(yanlisTusSesi, 0.7f); // Yanlýþ sesi çok az kýstým
+            else sfxSource.PlayOneShot(yanlisTusSesi, 0.5f);
         }
 
         if (hasActiveWord && activeWord.WordTyped())
@@ -200,15 +261,14 @@ public class WordManager : MonoBehaviour
                 isBossActive = false;
                 bossScoreCounter = 0;
                 currentLevel++;
-                UpdateLevelUI(); // Ekranda seviyeyi güncelle
-
+                UpdateLevelUI();
                 nextWordTime = Time.time + 3f;
                 CalculateDifficulty();
             }
             else
             {
                 bossScoreCounter++;
-                int targetBossScore = 8 + (currentLevel * 4);
+                int targetBossScore = 8 + (currentLevel * 2);
                 if (bossScoreCounter >= targetBossScore && !isBossActive) StartBossFight();
             }
         }
@@ -216,12 +276,13 @@ public class WordManager : MonoBehaviour
 
     public void TakeDamage(Word hitWord)
     {
+        // --- SENSÖR: Bizi vuran kelimeleri kara listeye al ---
+        failedWordsList.Add(hitWord.word);
+
         if (isBossActive) currentHealth -= bossDamage;
         else currentHealth -= normalDamage;
 
         if (sfxSource != null) sfxSource.PlayOneShot(yanlisTusSesi, 1.5f);
-
-        // Can barýný (Slider) güncelle
         if (healthBar != null) healthBar.value = currentHealth;
 
         hitWord.display.RemoveWord();
@@ -239,7 +300,7 @@ public class WordManager : MonoBehaviour
 
         if (currentHealth <= 0)
         {
-            currentHealth = 0; // Eksiye düþmesini engelle
+            currentHealth = 0;
             GameOver();
         }
     }
@@ -256,9 +317,9 @@ public class WordManager : MonoBehaviour
         words.Clear();
         hasActiveWord = false;
 
-        int bossWordCount = Mathf.Min(18, 8 + (currentLevel * 2));
+        int bossWordCount = 8 + (currentLevel * 2);
         string bossText = WordGenerator.GetRandomBossText(bossWordCount);
-        float bossSpeed = 13f + (currentLevel * 2.5f);
+        float bossSpeed = 8f + (currentLevel * 1.5f);
 
         Vector3 bossSpawnPos = new Vector3(800f, 0f, 0f);
         GameObject bossObj = Instantiate(bossPrefab, bossSpawnPos, Quaternion.identity, wordSpawner.wordCanvas);
@@ -277,30 +338,62 @@ public class WordManager : MonoBehaviour
         Time.timeScale = 0f;
         gameOverPanel.SetActive(true);
 
-        // DETAYLI ÝSTATÝSTÝK HESAPLAMALARI
-        float timeElapsedMinutes = (Time.time - gameStartTime) / 60f;
-        int wpm = 0;
-        if (timeElapsedMinutes > 0.05f)
-        {
-            wpm = Mathf.RoundToInt((totalWordsTyped) / timeElapsedMinutes);
-        }
+        // Ýstatistikleri Hesapla
+        float activeTimeMinutes = effectiveGameTime / 60f;
+        int wpm = activeTimeMinutes > 0.01f ? Mathf.RoundToInt((correctKeystrokes / 5f) / activeTimeMinutes) : 0;
 
-        float accuracy = 0f;
         int totalStrokes = correctKeystrokes + wrongKeystrokes;
-        if (totalStrokes > 0)
-        {
-            accuracy = ((float)correctKeystrokes / totalStrokes) * 100f;
-        }
+        float accuracy = totalStrokes > 0 ? ((float)correctKeystrokes / totalStrokes) * 100f : 0f;
+        int avgFPS = totalDeltaTime > 0 ? Mathf.RoundToInt(frameCount / totalDeltaTime) : 60;
+        float avgKeyDelay = totalStrokes > 0 ? (effectiveGameTime / totalStrokes) : 0f;
 
-        // Çok satýrlý þýk rapor çýktýsý
         finalStatsText.text =
             $"ULAÞILAN SEVÝYE: {currentLevel}\n" +
             $"PATLATILAN KELÝME: {totalWordsTyped}\n\n" +
-            $"HIZ (WPM): {wpm}\n" +
+            $"NET HIZ (WPM): {wpm}\n" +
             $"DOÐRULUK: %{Mathf.RoundToInt(accuracy)}";
 
-        // Arcade modunda net skor yoktur, o yüzden 0 gönderiyoruz
-        StatManager.SaveSession("Arcade", wpm, accuracy, totalWordsTyped, currentLevel, 0);
+        // Harf Sözlüðünü JSON Formatýna Çevir
+        List<LetterError> errorList = new List<LetterError>();
+        foreach (var kvp in letterErrorDict) { errorList.Add(new LetterError { harf = kvp.Key, hataSayisi = kvp.Value }); }
+
+        // DEVASA KARGOYU PAKETLE
+        GameSession bitenOyunVerisi = new GameSession
+        {
+            playDate = System.DateTime.Now.ToString("dd.MM.yyyy"),
+            startTime = sessionStartTime ?? "Bilinmiyor",
+            endTime = System.DateTime.Now.ToString("HH:mm:ss"),
+            durationSeconds = effectiveGameTime,
+
+            gameMode = "Arcade",
+            playedTextName = "Rastgele Kelimeler Dalgalarý",
+            quitReason = "Can Bitti (Health Depleted)",
+
+            totalKeystrokes = totalStrokes,
+            correctKeystrokes = correctKeystrokes,
+            wrongKeystrokes = wrongKeystrokes,
+            backspaceCount = 0, // Arcade'de yok
+            maxCombo = maxCombo,
+
+            timeToFirstKeystroke = timeToFirstKeystroke,
+            longestIdleTime = longestIdleTime,
+            averageTimeBetweenKeys = avgKeyDelay,
+            averageFPS = avgFPS,
+
+            detayliHarfHatalari = errorList,
+            tusKaristirmalari = keyConfusionList,
+            failedWords = failedWordsList,
+
+            grossWPM = activeTimeMinutes > 0 ? Mathf.RoundToInt((totalStrokes / 5f) / activeTimeMinutes) : 0,
+            netWPM = wpm,
+            accuracy = accuracy,
+
+            arcadeLevelReached = currentLevel,
+            arcadeWordsDefeated = totalWordsTyped
+        };
+
+        // GÖNDER!
+        StatManager.SaveSession(bitenOyunVerisi);
     }
 
     public void RestartGame() { Time.timeScale = 1f; SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex); }

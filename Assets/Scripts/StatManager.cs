@@ -3,69 +3,98 @@ using UnityEngine;
 using System.IO;
 using System;
 
-// 1. Tekil bir oyun seansýnýn verilerini tutan þablon
+// 1. HARF BAZLI HATA TUTUCU
+[System.Serializable]
+public class LetterError
+{
+    public string harf;
+    public int hataSayisi;
+}
+
+// 2. YENÝ: KAS HAFIZASI (Hangi harf yerine neye bastý?)
+[System.Serializable]
+public class KeyConfusion
+{
+    public string expectedChar;
+    public string pressedChar;
+    public int count;
+}
+
+// 3. HER BÝLGÝ KIRINTISINI TUTAN DEVASA ÞABLON
 [System.Serializable]
 public class GameSession
 {
-    public string playDate;     // Ne zaman oynandý? (Örn: 2026-02-22)
-    public string gameMode;     // "Arcade" mi "Katiplik" mi?
-    public int wpm;             // Yazma Hýzý
-    public float accuracy;      // Doðruluk Oraný
-    public int totalWords;      // Toplam Vuruþ/Kelime
-    public int levelReached;    // (Sadece Arcade için) Kaçýncý seviyeye geldi?
-    public int netScore;        // (Sadece Katiplik için) Net kelime
+    public int sessionID;
+    public string playDate;
+    public string startTime;
+    public string endTime;
+    public float durationSeconds;
+
+    public string gameMode;
+    public string playedTextName;
+    public string quitReason;         // Öldü mü, pes mi etti?
+
+    // --- KLAVYE ANALÝTÝÐÝ ---
+    public int totalKeystrokes;
+    public int correctKeystrokes;
+    public int wrongKeystrokes;
+    public int backspaceCount;
+    public int maxCombo;
+
+    // --- YENÝ: PSÝKOLOJÝK VE REFLEKS ANALÝTÝÐÝ ---
+    public float timeToFirstKeystroke;// Ekrana kelime geldikten sonra ilk tuþa basma süresi (Refleks hýzý)
+    public float longestIdleTime;     // Hiçbir tuþa basmadan ekrana baktýðý maksimum süre (Kilitlenme süresi)
+    public float averageTimeBetweenKeys; // Tuþlar arasý ortalama basma hýzý (Saniye)
+    public int averageFPS;            // Oyun sýrasýnda bilgisayar kasýyor muydu?
+
+    public List<LetterError> detayliHarfHatalari = new List<LetterError>();
+    public List<KeyConfusion> tusKaristirmalari = new List<KeyConfusion>(); // Örn: K yerine L'ye bastý
+    public List<string> failedWords = new List<string>(); // Vuramadýðý (canýný yakan) kelimeler
+
+    // --- PERFORMANS ANALÝTÝÐÝ ---
+    public int grossWPM;
+    public int netWPM;
+    public float accuracy;
+
+    // --- MODA ÖZEL VERÝLER ---
+    public int arcadeLevelReached;
+    public int arcadeWordsDefeated;
+
+    public int katiplikAtlananKelime;
+    public int katiplikBoslukHatasi;
+    public bool isKatiplikPassed;
 }
 
-// 2. Tüm seanslarý liste halinde tutan ana dosya yapýsý
 [System.Serializable]
 public class PlayerStatsData
 {
     public List<GameSession> allSessions = new List<GameSession>();
 }
 
-// 3. Veritabanýný yöneten Ana Sýnýf
 public static class StatManager
 {
     private static string GetFilePath()
     {
-        // Bilgisayarýn gizli ve güvenli uygulama verileri klasörüne kaydeder
-        return Path.Combine(Application.persistentDataPath, "KatiplikGelisimVerileri.json");
+        return Path.Combine(Application.persistentDataPath, "KatiplikTelemetriVerileri.json");
     }
 
-    // Oyundan gelen veriyi JSON'a kaydetme
-    public static void SaveSession(string mode, int wpm, float accuracy, int totalWords, int levelReached = 0, int netScore = 0)
+    public static void SaveSession(GameSession sessionData)
     {
         PlayerStatsData data = LoadAllData();
+        sessionData.sessionID = data.allSessions.Count + 1;
 
-        GameSession newSession = new GameSession
-        {
-            playDate = DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
-            gameMode = mode,
-            wpm = wpm,
-            accuracy = accuracy,
-            totalWords = totalWords,
-            levelReached = levelReached,
-            netScore = netScore
-        };
+        data.allSessions.Add(sessionData);
 
-        data.allSessions.Add(newSession);
-
-        // Veriyi JSON metnine çevir ve kaydet
         string json = JsonUtility.ToJson(data, true);
         File.WriteAllText(GetFilePath(), json);
 
-        Debug.Log("VERÝ KAYDEDÝLDÝ: " + GetFilePath());
+        Debug.Log("SÜPER TELEMETRÝ KAYDEDÝLDÝ! Kayýt No: " + sessionData.sessionID + "\nDosya: " + GetFilePath());
     }
 
-    // JSON'dan verileri geri okuma
     public static PlayerStatsData LoadAllData()
     {
         string path = GetFilePath();
-        if (File.Exists(path))
-        {
-            string json = File.ReadAllText(path);
-            return JsonUtility.FromJson<PlayerStatsData>(json);
-        }
-        return new PlayerStatsData(); // Dosya yoksa boþ liste döndür
+        if (File.Exists(path)) return JsonUtility.FromJson<PlayerStatsData>(File.ReadAllText(path));
+        return new PlayerStatsData();
     }
 }

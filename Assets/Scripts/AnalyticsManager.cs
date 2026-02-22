@@ -10,25 +10,22 @@ public class AnalyticsManager : MonoBehaviour
     public TMP_Dropdown modFiltresi;
     public TextMeshProUGUI ortalamaWpmText;
     public TextMeshProUGUI ortalamaDogrulukText;
-    public Transform grafikAlani; // Horizontal Layout Group olan panel
-    public GameObject barPrefab;  // Üreteceðimiz sütun
+    public Transform grafikAlani;
+    public GameObject barPrefab;
 
-    public float maksimumGrafikBoyu = 400f; // Sütunlarýn çýkabileceði maksimum piksel yüksekliði
+    public float maksimumGrafikBoyu = 400f;
 
     private PlayerStatsData allData;
 
     void Start()
     {
-        // Filtre deðiþtiðinde grafiði yeniden çiz!
         modFiltresi.onValueChanged.AddListener(delegate { GrafigiCiz(); });
-
         allData = StatManager.LoadAllData();
         GrafigiCiz();
     }
 
     public void GrafigiCiz()
     {
-        // 1. Önce eski grafiði temizle
         foreach (Transform child in grafikAlani) { Destroy(child.gameObject); }
 
         if (allData.allSessions.Count == 0)
@@ -37,8 +34,7 @@ public class AnalyticsManager : MonoBehaviour
             return;
         }
 
-        // 2. Filtreye göre verileri seç
-        int seciliFiltre = modFiltresi.value; // 0: Tümü, 1: Arcade, 2: Katiplik
+        int seciliFiltre = modFiltresi.value;
         List<GameSession> filtrelenmisListe = new List<GameSession>();
 
         foreach (var session in allData.allSessions)
@@ -48,42 +44,35 @@ public class AnalyticsManager : MonoBehaviour
             else if (seciliFiltre == 2 && session.gameMode == "Katiplik") filtrelenmisListe.Add(session);
         }
 
-        // 3. Ýstatistikleri Hesapla ve Grafiði Çiz
         int toplamWpm = 0;
         float toplamDogruluk = 0f;
 
-        // Grafiði oranlamak için en yüksek WPM'i bul (En uzun sütun o olacak)
         int enYuksekWpm = 1;
-        foreach (var s in filtrelenmisListe) { if (s.wpm > enYuksekWpm) enYuksekWpm = s.wpm; }
+        // YENÝ SÝSTEM: Artýk wpm deðil, netWPM deðerini okuyoruz
+        foreach (var s in filtrelenmisListe) { if (s.netWPM > enYuksekWpm) enYuksekWpm = s.netWPM; }
 
-        // Sütunlarý üret (Sadece son 20 seansý göster ki ekran taþmasýn)
         int baslangicIndex = Mathf.Max(0, filtrelenmisListe.Count - 20);
 
         for (int i = baslangicIndex; i < filtrelenmisListe.Count; i++)
         {
             GameSession seans = filtrelenmisListe[i];
 
-            toplamWpm += seans.wpm;
+            toplamWpm += seans.netWPM; // YENÝ
             toplamDogruluk += seans.accuracy;
 
-            // Sütunu (Bar) yarat
             GameObject bar = Instantiate(barPrefab, grafikAlani);
 
-            // Sütunun boyunu WPM'e göre orantýlý olarak uzat
             RectTransform barRect = bar.GetComponent<RectTransform>();
-            float oran = (float)seans.wpm / enYuksekWpm;
-            barRect.sizeDelta = new Vector2(50f, maksimumGrafikBoyu * oran); // Geniþlik 50px, Boy dinamik
+            float oran = (float)seans.netWPM / enYuksekWpm; // YENÝ
+            barRect.sizeDelta = new Vector2(50f, maksimumGrafikBoyu * oran);
 
-            // Üzerine WPM deðerini yazdýr
             TextMeshProUGUI barText = bar.GetComponentInChildren<TextMeshProUGUI>();
-            barText.text = seans.wpm.ToString();
+            barText.text = seans.netWPM.ToString(); // YENÝ
 
-            // Arcade mi Katiplik mi olduðunu rengiyle belli edebiliriz
-            if (seans.gameMode == "Katiplik") bar.GetComponent<Image>().color = new Color32(200, 50, 50, 255); // Kýrmýzýmsý
-            else bar.GetComponent<Image>().color = new Color32(50, 150, 250, 255); // Mavimsi
+            if (seans.gameMode == "Katiplik") bar.GetComponent<Image>().color = new Color32(200, 50, 50, 255);
+            else bar.GetComponent<Image>().color = new Color32(50, 150, 250, 255);
         }
 
-        // 4. Ortalamalarý Ekrana Yaz
         if (filtrelenmisListe.Count > 0)
         {
             ortalamaWpmText.text = "Ortalama Hýz: " + (toplamWpm / filtrelenmisListe.Count) + " WPM";
